@@ -1,0 +1,1 @@
+from gym.envs.recommender.collab_filtering import CollaborativeFiltering

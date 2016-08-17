@@ -476,3 +476,24 @@ register(
     entry_point='gym.envs.safety:OffSwitchCartpoleProbEnv',
     timestep_limit=200,
 )
+
+# Recommender Systems
+# ----------------------------------------
+
+register(
+    id='CollaborativeFiltering-v0',
+    entry_point='gym.envs.recommender:CollaborativeFiltering',
+    reward_threshold=80, # 943 users x 20 items x (3.5)~4 average rating. In terms of average reward per episode (1 user at a time)
+    timestep_limit=18900, # ~ 943 users x 20 items
+    trials=100, #default value
+    # local_only=False,
+    kwargs={'properties': {'use_mongodb': False, 'mongo_db': 'recommender', 'items_collection': 'items_movielens100k',
+                'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
+                'expl_subset_limit': 5, "guided_exploration": False,
+                'local': {'train': False, 'path': '/Users/santteegt/Downloads/ml-100k',
+                          'info': 'u.info', 'items_collection': 'items_collection.csv',
+                          'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',
+                          'predicted_ratings': 'rankmatrix.npy'}
+            }},
+    nondeterministic=False,
+)

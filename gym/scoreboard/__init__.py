@@ -83,6 +83,24 @@ add_group(
     description='Environments to test various AI safety properties.'
 )
 
+# Recommender System
+
+add_group(
+    id='recommender',
+    name='Recommender Systems',
+    description='Recommender Systems using RL approaches'
+)
+
+add_task(
+    id='CollaborativeFiltering-v0',
+    group='recommender',
+    summary="Collaborative Filtering Environment",
+    # contributor='UCL/santteegt',
+    description="""Collaborative Filtering environment which simulates user behaviour based on a Markov Chain Transition
+    Probability matrix
+    """
+)
+
 # classic control
 
 add_task(
