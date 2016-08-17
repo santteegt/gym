@@ -489,7 +489,7 @@ register(
     # local_only=False,
     kwargs={'properties': {'use_mongodb': False, 'mongo_db': 'recommender', 'items_collection': 'items_movielens100k',
                 'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
-                'expl_subset_limit': 5, "guided_exploration": False,
+                'expl_subset_limit': 5, "guided_exploration": True,
                 'local': {'train': False, 'path': '/Users/santteegt/Downloads/ml-100k',
                           'info': 'u.info', 'items_collection': 'items_collection.csv',
                           'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',

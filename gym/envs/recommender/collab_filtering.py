@@ -159,7 +159,7 @@ class CollaborativeFiltering(gym.Env):
         random_item = int(np.floor(self.np_random.uniform(low=0, high=subset_size)))
         # random item state
         random_item_id = user_items[random_item]['item_id'] if self.properties.kwargs['use_mongodb'] else user_items[random_item]
-        print "random item id in guided exploration: {}".format(random_item_id)
+        # print "random item id in guided exploration: {}".format(random_item_id)
         return random_item_id, self.__data.find_one(query={"_id": random_item_id}, type="items")
 
     def _step(self, action):
