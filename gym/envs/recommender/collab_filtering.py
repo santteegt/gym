@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 class CollaborativeFiltering(gym.Env):
 
     metadata = {
-        'render.modes': ['human', 'rgb_array'],
+        'render.modes': ['human', 'ansi'], #'rgb_array'],
         'video.frames_per_second' : 50
     }
 
@@ -56,7 +56,7 @@ class CollaborativeFiltering(gym.Env):
         self.observation_space = spaces.Box(low, high)
         # action space defined as the set of available items to recommend
         low, high = self.__data.get_bounds(type="items") # if we want to represent the action space to the item_id in the set
-        self.action_space = spaces.Box(np.array([low]), np.array([high])) # enclosed by squared brackets only when the action space is set to item id set
+        self.action_space = spaces.Box(np.array([1. * low]), np.array([1. * high])) # enclosed by squared brackets only when the action space is set to item id set
         # self.action_space = spaces.Box(low, high)
 
         # if self.properties.kwargs['use_mongodb']:
@@ -248,7 +248,9 @@ class CollaborativeFiltering(gym.Env):
         # return np.array(self.state), reward, done, {}
 
     def _render(self, mode='human', close=False):
-        return []
+        precision = self.__true_positives / (self.__true_positives + self.__false_positives) \
+            if (self.__true_positives + self.__false_positives) > 0 else 0.
+        return "precision => {}\n".format(precision)
         # if close:
         #     if self.viewer is not None:
         #         self.viewer.close()
