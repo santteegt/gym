@@ -7,6 +7,8 @@ import gym
 from gym import error, spaces
 from gym.utils import seeding
 from gym.envs.recommender.util import *
+from six import StringIO
+import sys
 
 
 logger = logging.getLogger(__name__)
@@ -49,6 +51,7 @@ class CollaborativeFiltering(gym.Env):
         self.__true_negatives = 0
         self.__false_positives = 0
         self.__false_negatives = 0
+        self.__selected_items = []
 
         low = np.concatenate([-1 * np.ones(emb_size), np.zeros(other_size)]).ravel()
         high = np.concatenate([np.ones(emb_size), np.ones(other_size)]).ravel()
@@ -129,6 +132,7 @@ class CollaborativeFiltering(gym.Env):
         self.__current_user = self.user_exploration[0]
         self.user_exploration = self.user_exploration[1:]
 
+        self.__selected_items = []
 
         # random item state
         self.__obs_id, item = self._get_guided_random_item()
@@ -174,11 +178,14 @@ class CollaborativeFiltering(gym.Env):
         is_chosen, p_action, pred_rating = self.__data.compute_transition(self.__current_user, self.__obs_id, int(action))
         info = {}
 
+        item_info = {}
         if is_chosen: # (simulated) user selected the item
             self.__true_positives += 1
             info["item selected with P(X)"] = p_action
             p_end_episode = 0.1 # the episode ends with probability 0.1
             action = int(action)
+            item_info = {"previous": self.__obs_id, "item": action,
+                         "info": {"rating": pred_rating, "recommended": "X", "random": "-"}}
         else: # user selects another item randomly
             self.__false_positives += 1
             p_end_episode = 0.2 # the episode ends with probability 0.2
@@ -192,8 +199,12 @@ class CollaborativeFiltering(gym.Env):
             info["item randomly selected"] = action
             _, p_action, pred_rating = self.__data.compute_transition(self.__current_user, self.__obs_id, action)
             info["item selected with P(X)"] = p_action
+            item_info = {"previous": self.__obs_id, "item": action,
+                         "info": {"rating": pred_rating, "recommended": "-", "random": "X"}}
 
         reward = pred_rating
+
+        self.__selected_items.append(item_info)
 
         # TODO: calculate false negatives and true negatives
         info["Precision for current user"] = self.__true_positives / (self.__true_positives + self.__false_positives)
@@ -209,93 +220,38 @@ class CollaborativeFiltering(gym.Env):
 
         return self._get_obs(), round(reward), done, info
 
-
-
-
-
-
-        # state = self.state
-        # x, x_dot, theta, theta_dot = state
-        # force = self.force_mag if action==1 else -self.force_mag
-        # costheta = math.cos(theta)
-        # sintheta = math.sin(theta)
-        # temp = (force + self.polemass_length * theta_dot * theta_dot * sintheta) / self.total_mass
-        # thetaacc = (self.gravity * sintheta - costheta* temp) / (self.length * (4.0/3.0 - self.masspole * costheta * costheta / self.total_mass))
-        # xacc  = temp - self.polemass_length * thetaacc * costheta / self.total_mass
-        # x  = x + self.tau * x_dot
-        # x_dot = x_dot + self.tau * xacc
-        # theta = theta + self.tau * theta_dot
-        # theta_dot = theta_dot + self.tau * thetaacc
-        # self.state = (x,x_dot,theta,theta_dot)
-        # done =  x < -self.x_threshold \
-        #         or x > self.x_threshold \
-        #         or theta < -self.theta_threshold_radians \
-        #         or theta > self.theta_threshold_radians
-        # done = bool(done)
-        #
-        # if not done:
-        #     reward = 1.0
-        # elif self.steps_beyond_done is None:
-        #     # Pole just fell!
-        #     self.steps_beyond_done = 0
-        #     reward = 1.0
-        # else:
-        #     if self.steps_beyond_done == 0:
-        #         logger.warn("You are calling 'step()' even though this environment has already returned done = True. You should always call 'reset()' once you receive 'done = True' -- any further steps are undefined behavior.")
-        #     self.steps_beyond_done += 1
-        #     reward = 0.0
-        #
-        # return np.array(self.state), reward, done, {}
-
     def _render(self, mode='human', close=False):
+        if close:
+            #Nothing to do
+            return
+
+        output = StringIO() if mode == 'ansi' else sys.stdout
+
+        head  = "Running episode with user {0:06d}\n".format(self.__current_user)
+        head += "================================\n"
+        head += "====Item recommended so far=====\n"
+        head += "================================\n"
+        head += "\n"
+        output.write(head)
+        body = "  #  || Prev  Item ||  Item  || Rating || Recom || Random \n"
+        i = 0
+        reward = 0.
+        for item in self.__selected_items:
+            info = item["info"]
+            reward += info["rating"]
+            body += "{0:05d}||   {1:06d}   || {2:06d} ||  {3:.2f}  ||___{4}___||___{5}___ \n"\
+                .format(i, item["previous"], item["item"], info["rating"], info["recommended"], info["random"])
+            i += 1
+
+
+        output.write(body if i > 0 else "Initializing....\n")
+
         precision = self.__true_positives / (self.__true_positives + self.__false_positives) \
             if (self.__true_positives + self.__false_positives) > 0 else 0.
-        return "precision => {}\n".format(precision)
-        # if close:
-        #     if self.viewer is not None:
-        #         self.viewer.close()
-        #         self.viewer = None
-        #     return
-        #
-        # screen_width = 600
-        # screen_height = 400
-        #
-        # world_width = self.x_threshold*2
-        # scale = screen_width/world_width
-        # carty = 100 # TOP OF CART
-        # polewidth = 10.0
-        # polelen = scale * 1.0
-        # cartwidth = 50.0
-        # cartheight = 30.0
-        #
-        # if self.viewer is None:
-        #     from gym.envs.classic_control import rendering
-        #     self.viewer = rendering.Viewer(screen_width, screen_height, display=self.display)
-        #     l,r,t,b = -cartwidth/2, cartwidth/2, cartheight/2, -cartheight/2
-        #     axleoffset =cartheight/4.0
-        #     cart = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
-        #     self.carttrans = rendering.Transform()
-        #     cart.add_attr(self.carttrans)
-        #     self.viewer.add_geom(cart)
-        #     l,r,t,b = -polewidth/2,polewidth/2,polelen-polewidth/2,-polewidth/2
-        #     pole = rendering.FilledPolygon([(l,b), (l,t), (r,t), (r,b)])
-        #     pole.set_color(.8,.6,.4)
-        #     self.poletrans = rendering.Transform(translation=(0, axleoffset))
-        #     pole.add_attr(self.poletrans)
-        #     pole.add_attr(self.carttrans)
-        #     self.viewer.add_geom(pole)
-        #     self.axle = rendering.make_circle(polewidth/2)
-        #     self.axle.add_attr(self.poletrans)
-        #     self.axle.add_attr(self.carttrans)
-        #     self.axle.set_color(.5,.5,.8)
-        #     self.viewer.add_geom(self.axle)
-        #     self.track = rendering.Line((0,carty), (screen_width,carty))
-        #     self.track.set_color(0,0,0)
-        #     self.viewer.add_geom(self.track)
-        #
-        # x = self.state
-        # cartx = x[0]*scale+screen_width/2.0 # MIDDLE OF CART
-        # self.carttrans.set_translation(cartx, carty)
-        # self.poletrans.set_rotation(-x[2])
-        #
-        # return self.viewer.render(return_rgb_array = mode=='rgb_array')
+
+        stats  = "Precision at {0:05d} : {1:.3f}\n".format(i, precision)
+        stats += "Cummulative Reward: {0:.2f}\n".format(reward)
+
+        output.write(stats)
+
+        return output
