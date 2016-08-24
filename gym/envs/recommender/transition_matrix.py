@@ -1,19 +1,12 @@
 import numpy as np
-import scipy.stats
-import scipy.spatial
 from sklearn.cross_validation import KFold
-import random
 from sklearn.metrics import mean_squared_error
 from sklearn.metrics import precision_recall_fscore_support
-from sklearn.metrics import precision_score
 from math import sqrt
-import math
 import warnings
 import sys
-# from sklearn.utils.extmath import np.dot
 
 import scipy.spatial.distance as ssd
-from scipy.stats import spearmanr as spearman
 from scipy.sparse import issparse
 from scipy.sparse import csr_matrix
 import time
@@ -21,14 +14,12 @@ import os
 
 warnings.simplefilter("error")
 
-users = 6040
-items = 3952
-
 
 class Util(object):
     @staticmethod
     def adjusted_cosine(X, Y, N):
         """
+        DEPRECATED. NOW PROCESS IS USING SKLEARN METHOD FOR SPARSE MATRICES
         Developed by: https://gist.github.com/irgmedeiros/5859643
 
         Considering the rows of X (and Y=X) as vectors, compute the
@@ -120,32 +111,6 @@ class TransitionProbability(object):
         print "Transition probability matrix shape: {} Ranking matrix shape: {}".format(self.__tr_matrix.shape,
                                                                                         self.__ranking_matrix.shape)
 
-    # def similarity_item(data):
-    # 	print "Hello"
-    # 	#f_i_d = open("sim_item_based.txt","w")
-    # 	item_similarity_cosine = np.zeros((items,items))
-    # 	# item_similarity_jaccard = np.zeros((items,items))
-    # 	# item_similarity_pearson = np.zeros((items,items))
-    # 	for item1 in range(items):
-    # 		print item1
-    # 		for item2 in range(items):
-    # 			# if np.count_nonzero(data[:,item1]) and np.count_nonzero(data[:,item2]):
-    # 				# item_similarity_cosine[item1][item2] = 1-scipy.spatial.distance.cosine(data[:,item1],data[:,item2])
-    # 			print "i dim {} j dim {}".format(data[:,item1].shape, data[:,item2].shape)
-    # 			item_similarity_cosine[item1][item2] = 1-scipy.spatial.distance.cdist(data[:,item1], data[:,item2], metric='cosine')
-    # 				# item_similarity_jaccard[item1][item2] = 1-scipy.spatial.distance.jaccard(data[:,item1],data[:,item2])
-    # 				# try:
-    # 				# 	if not math.isnan(scipy.stats.pearsonr(data[:,item1],data[:,item2])[0]):
-    # 				# 		item_similarity_pearson[item1][item2] = scipy.stats.pearsonr(data[:,item1],data[:,item2])[0]
-    # 				# 	else:
-    # 				# 		item_similarity_pearson[item1][item2] = 0
-    # 				# except:
-    # 				# 	item_similarity_pearson[item1][item2] = 0
-    #
-    # 			#f_i_d.write(str(item1) + "," + str(item2) + "," + str(item_similarity_cosine[item1][item2]) + "," + str(item_similarity_jaccard[item1][item2]) + "," + str(item_similarity_pearson[item1][item2]) + "\n")
-    # 	#f_i_d.close()
-    # 	return item_similarity_cosine#, item_similarity_jaccard, item_similarity_pearson
-
     def _get_initial_matrices(self):
         """
         Generates user rating matrix and item similarity matrix
@@ -159,11 +124,8 @@ class TransitionProbability(object):
         for e in self.__raw_data:
             Mat[e[0] - 1][e[1] - 1] = e[2]
 
-        # sum_rows = np.sum(Mat, axis=1)
-        for row in np.arange(Mat.shape[0])
-        std_dev = np.std(Mat, axis=0)
-        mean = np.mean(Mat, axis=0)
-        Mat = (Mat - mean) / std_dev
+        sum_rows = np.sum(Mat, axis=0)
+
         Mat = csr_matrix(Mat)
 
 
@@ -180,38 +142,18 @@ class TransitionProbability(object):
 
         mean_user_ratings = sum_user_ratings / cols
 
-        # for col in range(cols):
-        # 	Mat[:,col] = Mat[:,col] - (((Mat[:,col] > 0) * 1) * mean_user_ratings)
-
-        # print Mat
-        # return [], []
-
         print "Initializing Similarity matrix process"
         start_time = time.time()
-        # sim_item_cosine, sim_item_jaccard, sim_item_pearson = similarity_item(Mat)
-        # sim_item_cosine = similarity_item(Mat)
         print "Rating matrix properties: {} ".format(Mat.shape)
+
         # transpose for compute the similarity of items
-
-        # transp = np.matrix.transpose(Mat) # commented
-
-        # with np.errstate(divide='ignore',invalid='ignore'):
-        # 	sim_item_cosine = 1 - scipy.spatial.distance.cdist(transp, transp, metric='cosine')
-
-        # sim_item_cosine = Util.adjusted_cosine(transp, transp, np.matrix.transpose(mean_user_ratings)) # commented
-
         Mat_transpose = Mat.transpose()
         mur_transpose = mean_user_ratings.transpose()
-        # X = Mat - mean_user_ratings
-        # Y = Mat - mean_user_ratings
         X = Mat_transpose - mur_transpose
         Y = Mat_transpose - mur_transpose
         from sklearn.metrics.pairwise import cosine_similarity
         sim_item_cosine = 1 - cosine_similarity(X, Y)
         # sim_item_cosine = Util.adjusted_cosine(Mat, Mat, mean_user_ratings)
-
-
-        # sim_item_cosine, sim_item_jaccard, sim_item_pearson = np.random.rand(items,items), np.random.rand(items,items), np.random.rand(items,items)
 
         print "Process ends in {} seconds".format(time.time() - start_time)
         print "Sim matrix properties: {}".format(sim_item_cosine.shape)
@@ -278,15 +220,15 @@ class TransitionProbability(object):
         print "Final RMSE value with {}-fold cross validation: {}".format(n_folds,
                                                                           rmse_cosine)  # + "\t" + str(rmse_jaccard) + "\t" + str(rmse_pearson)
 
-        f_rmse = open("rmse_item.txt", "w")
-        f_rmse.write(str(rmse_cosine))  # + "\t" + str(rmse_jaccard) + "\t" + str(rmse_pearson) + "\n")
+        # f_rmse = open("rmse_item.txt", "w")
+        # f_rmse.write(str(rmse_cosine))  # + "\t" + str(rmse_jaccard) + "\t" + str(rmse_pearson) + "\n")
 
-        rmse = [rmse_cosine]  # , rmse_jaccard, rmse_pearson]
-        req_sim = rmse.index(min(rmse))
+        # rmse = [rmse_cosine]  # , rmse_jaccard, rmse_pearson]
+        # req_sim = rmse.index(min(rmse))
 
         # print req_sim
-        f_rmse.write(str(req_sim))
-        f_rmse.close()
+        # f_rmse.write(str(req_sim))
+        # f_rmse.close()
 
     def get_transition_matrix(self, generate=False, beta=0.9):
         """
@@ -313,13 +255,8 @@ class TransitionProbability(object):
             sum_Sim = np.sum(self.__sim_matrix, axis=1)
             # self.__tr_matrix = csr_matrix(self.__sim_matrix.shape, dtype=np.float64)
             self.__tr_matrix = ((beta * self.__sim_matrix) / sum_Sim) + ((1. - beta) / self.__shape[1])
-            # for col in np.arange(self.__sim_matrix.shape[1]):
-            #     print col
-            #     print self.__tr_matrix[:, col].shape
-            #     print np.expand_dims(self.__sim_matrix[:, col], axis=1).shape
-            #     print self.__shape[1]
-            #     self.__tr_matrix[:, col] = beta * np.expand_dims(self.__sim_matrix[:, col], axis=1) / sum_Sim[col] + (1. - beta) / self.__shape[1]
 
+        # np.savetxt("trmatrix.txt", self.__tr_matrix)
         return self.__tr_matrix
 
     def get_transitions_per_item(self, item_id):
@@ -362,9 +299,9 @@ class TransitionProbability(object):
         # from scipy.sparse.linalg import inv
         # inv_random_walk_length = scipy.sparse.linalg.inv(random_walk_length)
         inv_random_walk_length = np.linalg.pinv(random_walk_length)
-        np.savetxt("inv.txt", inv_random_walk_length)
+        # np.savetxt("inv.txt", inv_random_walk_length)
         P_hat = alpha * self.__tr_matrix * csr_matrix(inv_random_walk_length)
-        np.savetxt("p_hat.txt", P_hat)
+        # np.savetxt("p_hat.txt", P_hat)
         # self.__ranking_matrix = np.dot(self.__ratings_matrix, P_hat)
         self.__ranking_matrix = self.__ratings_matrix * csr_matrix(P_hat)
 
@@ -382,10 +319,12 @@ class TransitionProbability(object):
         m = matrix.toarray()
         max_indexes = np.argmax(m, axis=1)
         # scales = [5. / matrix[row][max_indexes[row]] for row in np.arange(len(max_indexes))]
-        scales = [5. / m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
-        # scales = np.expand_dims(scales, axis=1)
-        scales = np.diag(scales)
-        return np.round(scales * matrix)
+        # scales = [5. / m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
+        scales = [5. - m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
+        scales = np.expand_dims(scales, axis=1)
+        # scales = np.diag(scales)
+        # return np.round(scales * matrix)
+        return np.round(scales + matrix.toarray())
 
     def get_rankings_per_user(self, user_id):
         """
@@ -417,8 +356,8 @@ class TransitionProbability(object):
         y_true = []
 
         # fw = open('result2.csv','w')
-        fw_w = open('data/rs/predictions.csv', 'w')
-        fw_r = open('data/rs/predictions-by-Rank.csv', 'w')
+        fw_w = open('data/predictions.csv', 'w')
+        fw_r = open('data/predictions-by-Rank.csv', 'w')
 
         eval_ = []
         eval_by_rank = []
@@ -522,29 +461,29 @@ if __name__ == "__main__":
 
             f.close()
             inst.predictRating(toBeRated)
-    # for alpha in np.arange(0.325, 0, -0.025):
-    #     for beta in np.arange(0.6, 1, 0.1):
-    #         # inst = TransitionProbability(train=False, raw_data=recommend_data, shape=(943, 1682))
-    #
-    #         print "=========================================="
-    #         print "=========================================="
-    #         print "Alpha: {} - Beta: {}".format(alpha, beta)
-    #         print "=========================================="
-    #         print "=========================================="
-    #
-    #         inst = TransitionProbability(train=True, raw_data=recommend_data, shape=(943, 1682), alpha=alpha, beta=beta)
-    #         # crossValidation(recommend_data)
-    #         if len(sys.argv) > 2:
-    #             f = open(sys.argv[2], "r")
-    #             toBeRated = {"user": [], "item": [], "true_label": []}
-    #             for row in f:
-    #                 r = row.split('\t')
-    #                 toBeRated["item"].append(int(r[1]))
-    #                 toBeRated["user"].append(int(r[0]))
-    #                 toBeRated["true_label"].append(int(r[2]))
-    #
-    #             f.close()
-    #             inst.predictRating(toBeRated)
+            # for alpha in np.arange(0.325, 0, -0.025):
+            #     for beta in np.arange(0.6, 1, 0.1):
+            #         # inst = TransitionProbability(train=False, raw_data=recommend_data, shape=(943, 1682))
+            #
+            #         print "=========================================="
+            #         print "=========================================="
+            #         print "Alpha: {} - Beta: {}".format(alpha, beta)
+            #         print "=========================================="
+            #         print "=========================================="
+            #
+            #         inst = TransitionProbability(train=True, raw_data=recommend_data, shape=(943, 1682), alpha=alpha, beta=beta)
+            #         # crossValidation(recommend_data)
+            #         if len(sys.argv) > 2:
+            #             f = open(sys.argv[2], "r")
+            #             toBeRated = {"user": [], "item": [], "true_label": []}
+            #             for row in f:
+            #                 r = row.split('\t')
+            #                 toBeRated["item"].append(int(r[1]))
+            #                 toBeRated["user"].append(int(r[0]))
+            #                 toBeRated["true_label"].append(int(r[2]))
+            #
+            #             f.close()
+            #             inst.predictRating(toBeRated)
 
     else:
         from sklearn.cross_validation import train_test_split
