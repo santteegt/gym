@@ -27,7 +27,7 @@ class Data(object):
     def get_user_items(self, user_id, limit=5):
         pass
 
-    def compute_transition(self, prev_obs, obs):
+    def compute_transition(self, prev_obs, obs, embeddings=None):
         pass
 
 class MongoDB(Data):
@@ -134,7 +134,7 @@ class FileSystemData(Data):
     def get_user_items(self, user_id, limit=5):
         return self.__user_ratings[user_id - 1].argsort()[::-1][:limit]
 
-    def compute_transition(self, user_id, prev_obs, obs):
+    def compute_transition(self, user_id, prev_obs, obs, embeddings=None):
         '''
         Computes the transition probability of an item given the current state and returns its value and simulated user
         rating if it is likely chosen
@@ -146,14 +146,25 @@ class FileSystemData(Data):
         Returns:
 
         '''
+        if embeddings is not None:
+            embed_feat = obs[:embeddings[0]]
+            other_feat = obs[embeddings[0]:].astype(np.int)
+            item = self.__items[(self.__items["embeddings"] == str(embed_feat))
+                                & (self.__items["other_feat"] == str(other_feat))]
+            assert item.values.size > 0, "The query is not returning features for an existing item"
+            obs_id = item["_id"].values[0]
+        else:
+            obs_id = obs
+
+
         # get the item transition with max probability
         item_transitions = self.__trmatrix.get_transitions_per_item(prev_obs)
         max_p_index = np.argmax(item_transitions)
-        rating = self.__user_ratings[user_id - 1][obs - 1]
+        rating = self.__user_ratings[user_id - 1][obs_id - 1]
         # get existing rating, otherwise, select the rating from predictions
-        rating = rating if rating > 0 else self.__trmatrix.get_rankings_per_user(user_id)[obs - 1]
+        rating = rating if rating > 0 else self.__trmatrix.get_rankings_per_user(user_id)[obs_id - 1]
 
-        return max_p_index + 1 == obs, item_transitions[obs - 1], np.round(rating)
+        return max_p_index + 1 == obs_id, item_transitions[obs_id - 1], np.round(rating), obs_id
 
 
 # just for testing purposes

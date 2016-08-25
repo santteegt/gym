@@ -489,11 +489,13 @@ register(
     # local_only=False,
     kwargs={'properties': {'use_mongodb': False, 'mongo_db': 'recommender', 'items_collection': 'items_movielens100k',
                 'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
-                'expl_subset_limit': 5, "guided_exploration": True,
-                'local': {'train': False, 'path': '/Users/santteegt/Downloads/ml-100k',
-                          'info': 'u.info', 'items_collection': 'items_collection.csv',
+                'expl_subset_limit': 20, # number of good recommendations for guided exploration
+                "guided_exploration": True,
+                'local': {'train': False, 'path': 'data/ml-1m',
+                          'info': 'u.info', # manually created for ml-1m
+                          'items_collection': 'items_collection.csv', #created by executing dataset_loader for w_embed
                           'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',
-                          'predicted_ratings': 'rankmatrix.npy'}
+                          'predicted_ratings': 'rankmatrix.npy'} # created by executing transition_matrix.py for train
             }},
     nondeterministic=False,
 )
