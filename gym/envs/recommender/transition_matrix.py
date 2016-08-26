@@ -8,7 +8,7 @@ import sys
 
 import scipy.spatial.distance as ssd
 from scipy.sparse import issparse
-from scipy.sparse import csr_matrix
+from scipy.sparse import csr_matrix, csc_matrix
 import time
 import os
 
@@ -94,7 +94,8 @@ class TransitionProbability(object):
             self.__tr_matrix = self.get_transition_matrix(generate=True, beta=beta)
 
             # USE TRANSTITION MATRIX TO COMPUTE RANKING MATRIX
-            self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=True)
+            # self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=True)
+            self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=False)
 
             self.__ratings_matrix = self.__ratings_matrix.toarray()
             np.save(self.rating_matrix_filename, self.__ratings_matrix, allow_pickle=False)
@@ -136,11 +137,14 @@ class TransitionProbability(object):
         # nonzero_counts = [np.count_nonzero(Mat[row]) for row in range(rows)]
 
         # sum_user_ratings = np.sum(Mat, axis=1) # commented
-        sum_user_ratings = Mat.sum(axis=1)
+        # sum_user_ratings = Mat.sum(axis=1)
 
         # mean_user_ratings = sum_user_ratings / nonzero_counts
 
-        mean_user_ratings = sum_user_ratings / cols
+        nonzero_counts = np.sum(Mat.toarray() > 0, axis=1)
+
+        # mean_user_ratings = sum_user_ratings / cols
+        mean_user_ratings = np.sum(Mat.toarray(), axis=1) / nonzero_counts
 
         print "Initializing Similarity matrix process"
         start_time = time.time()
@@ -149,10 +153,11 @@ class TransitionProbability(object):
         # transpose for compute the similarity of items
         Mat_transpose = Mat.transpose()
         mur_transpose = mean_user_ratings.transpose()
-        X = Mat_transpose - mur_transpose
-        Y = Mat_transpose - mur_transpose
+        X = Mat_transpose# - mur_transpose
+        Y = Mat_transpose# - mur_transpose
         from sklearn.metrics.pairwise import cosine_similarity
-        sim_item_cosine = 1 - cosine_similarity(X, Y)
+        # sim_item_cosine = 1 - cosine_similarity(X, Y)
+        sim_item_cosine = cosine_similarity(X, Y)
         # sim_item_cosine = Util.adjusted_cosine(Mat, Mat, mean_user_ratings)
 
         print "Process ends in {} seconds".format(time.time() - start_time)
@@ -254,9 +259,14 @@ class TransitionProbability(object):
             # sum_Sim = np.sum(self.__sim_matrix)
             sum_Sim = np.sum(self.__sim_matrix, axis=1)
             # self.__tr_matrix = csr_matrix(self.__sim_matrix.shape, dtype=np.float64)
-            self.__tr_matrix = ((beta * self.__sim_matrix) / sum_Sim) + ((1. - beta) / self.__shape[1])
+            self.__tr_matrix = np.zeros_like(self.__sim_matrix)
+            for i in range(self.__sim_matrix.shape[1]):
+                self.__tr_matrix[i, ...] = (((beta * self.__sim_matrix[i, ...]) / sum_Sim[i]) if sum_Sim[i] > 0 else 0)\
+                                           + ((1. - beta) / self.__sim_matrix.shape[1])
+            # self.__tr_matrix = (((beta * self.__sim_matrix) / sum_Sim) if sum_Sim > 0 else 0) \
+            #                    + ((1. - beta) / self.__shape[1])
+            np.savetxt("trmatrix.txt", self.__tr_matrix)
 
-        # np.savetxt("trmatrix.txt", self.__tr_matrix)
         return self.__tr_matrix
 
     def get_transitions_per_item(self, item_id):
@@ -295,9 +305,10 @@ class TransitionProbability(object):
 
         # random_walk_length = np.ones_like(self.__tr_matrix) - alpha * self.__tr_matrix
         random_walk_length = csr_matrix(1 - alpha * self.__tr_matrix).todense()
+        # random_walk_length = csc_matrix(1 - alpha * self.__tr_matrix)
         # P_hat = alpha * self.__tr_matrix * np.linalg.pinv(random_walk_length)
         # from scipy.sparse.linalg import inv
-        # inv_random_walk_length = scipy.sparse.linalg.inv(random_walk_length)
+        # inv_random_walk_length = inv(random_walk_length)
         inv_random_walk_length = np.linalg.pinv(random_walk_length)
         # np.savetxt("inv.txt", inv_random_walk_length)
         P_hat = alpha * self.__tr_matrix * csr_matrix(inv_random_walk_length)
@@ -305,7 +316,8 @@ class TransitionProbability(object):
         # self.__ranking_matrix = np.dot(self.__ratings_matrix, P_hat)
         self.__ranking_matrix = self.__ratings_matrix * csr_matrix(P_hat)
 
-        return np.clip(self._scale_rows(self.__ranking_matrix) if scale else self.__ranking_matrix, 0.0, 5.0)
+        # return np.clip(self._scale_rows(self.__ranking_matrix), 0.0, 5.0) if scale else self.__ranking_matrix.toarray()
+        return self._scale_rows(self.__ranking_matrix) if scale else self.__ranking_matrix.toarray()
 
     def _scale_rows(self, matrix):
         """
@@ -319,12 +331,12 @@ class TransitionProbability(object):
         m = matrix.toarray()
         max_indexes = np.argmax(m, axis=1)
         # scales = [5. / matrix[row][max_indexes[row]] for row in np.arange(len(max_indexes))]
-        # scales = [5. / m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
-        scales = [5. - m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
+        scales = [5. / m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
+        # scales = [5. - m[crow][max_indexes[crow]] for crow in np.arange(len(max_indexes))]
+        # scales = np.expand_dims(scales, axis=0)
         scales = np.expand_dims(scales, axis=1)
-        # scales = np.diag(scales)
-        # return np.round(scales * matrix)
-        return np.round(scales + matrix.toarray())
+           
+        return np.round(scales * matrix.toarray())
 
     def get_rankings_per_user(self, user_id):
         """
@@ -336,6 +348,24 @@ class TransitionProbability(object):
 
         """
         return self.__ranking_matrix[user_id - 1]
+
+    def predict_item_rating(self, user_id, item_id):
+        """
+        predicts item rating per user by using the rating and similarity matrices
+        :param item_id:
+        :param user_id:
+        :return:
+        """
+        pred_cosine = 0.
+        if np.count_nonzero(self.__ratings_matrix[:, item_id - 1]):
+            sim_cosine = self.__sim_matrix[item_id - 1]
+            # get indices of users with non zero rating value
+            ind = (self.__ratings_matrix[user_id - 1] > 0)
+            normal_cosine = np.sum(np.absolute(sim_cosine[ind]))
+            if normal_cosine > 0:
+                pred_cosine = np.dot(sim_cosine, self.__ratings_matrix[user_id - 1]) / normal_cosine
+
+        return np.clip(pred_cosine, 0, 5)
 
     def predictRating(self, toBeRated):
         """
@@ -489,12 +519,12 @@ if __name__ == "__main__":
         from sklearn.cross_validation import train_test_split
         _, X_test = train_test_split(recommend_data, test_size=0.2, random_state=0)
         inst = TransitionProbability(train=True, raw_data=recommend_data, shape=(6040, 3883))
-        for r in X_test:
-            toBeRated["item"].append(int(r[1]))
-            toBeRated["user"].append(int(r[0]))
-            toBeRated["true_label"].append(int(r[2]))
-        start_time = time.time()
-        inst.predictRating(toBeRated)
-        print "prediction processing time: {} seconds".format(time.time() - start_time)
+        # for r in X_test:
+        #     toBeRated["item"].append(int(r[1]))
+        #     toBeRated["user"].append(int(r[0]))
+        #     toBeRated["true_label"].append(int(r[2]))
+        # start_time = time.time()
+        # inst.predictRating(toBeRated)
+        # print "prediction processing time: {} seconds".format(time.time() - start_time)
 
 
