@@ -162,7 +162,8 @@ class FileSystemData(Data):
         max_p_index = np.argmax(item_transitions)
         rating = self.__user_ratings[user_id - 1][obs_id - 1]
         # get existing rating, otherwise, select the rating from predictions
-        rating = rating if rating > 0 else self.__trmatrix.get_rankings_per_user(user_id)[obs_id - 1]
+        # rating = rating if rating > 0 else self.__trmatrix.get_rankings_per_user(user_id)[obs_id - 1]
+        rating = rating if rating > 0 else self.__trmatrix.predict_item_rating(user_id, obs_id)
 
         return max_p_index + 1 == obs_id, item_transitions[obs_id - 1], np.round(rating), obs_id
 

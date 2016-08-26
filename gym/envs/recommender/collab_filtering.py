@@ -43,6 +43,7 @@ class CollaborativeFiltering(gym.Env):
         self.np_random.shuffle(self.user_exploration)
 
         # self.__current_user = sample_user["user_id"]
+        self.__previous_user = None
         self.__current_user = None
         self.__obs_id = sample_item["_id"]
         self.__embeddings = np.ones(shape=self.__emb_size)
@@ -210,6 +211,7 @@ class CollaborativeFiltering(gym.Env):
 
         if self.np_random.uniform() < p_end_episode:
             done = True
+            self.__previous_user = self.__current_user
             # TODO: calculate MAP for cumulative Precision over users (episodes)
 
         self.__obs_id = action_id
@@ -230,6 +232,8 @@ class CollaborativeFiltering(gym.Env):
         head += "================================\n"
         head += "====Item recommended so far=====\n"
         head += "================================\n"
+        head += "User: {}\n".format(self.__previous_user)
+        head += "================================\n"
         head += "\n"
         output.write(head)
         body = "  #  || Prev  Item ||  Item  || Rating || Reward || Recom || Random \n"
@@ -238,7 +242,7 @@ class CollaborativeFiltering(gym.Env):
         for item in self.__selected_items:
             info = item["info"]
             reward += item["reward"]
-            body += "{0:05d}||   {1:06d}   || {2:06d} ||  {3:.2f}  ||  {3:.2f}  ||___{4}___||___{5}___ \n"\
+            body += "{0:05d}||   {1:06d}   || {2:06d} ||  {3:.2f}  ||  {4:.2f}  ||___{5}___||___{6}___ \n"\
                 .format(i, item["previous"], item["item"], info["rating"], item["reward"], info["recommended"],
                         info["random"])
             i += 1
