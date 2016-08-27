@@ -64,8 +64,7 @@ class CollaborativeFiltering(gym.Env):
 
         # action space defined as the current item to be selected
         # self.action_space = spaces.Box(low, high)
-        self.action_space = spaces.SimBox(low, high, data=self.__data, env=self,
-                                          top_n=self.properties.kwargs['expl_subset_limit'])
+        self.action_space = spaces.SimBox(low, high, env=self, top_n=self.properties.kwargs['expl_subset_limit'])
 
         # if self.properties.kwargs['use_mongodb']:
         #     self._get_tr_stats(low, high)
@@ -96,6 +95,9 @@ class CollaborativeFiltering(gym.Env):
     def _seed(self, seed=None):
         self.np_random, seed = seeding.np_random(seed)
         return [seed]
+
+    def get_data(self):
+        return self.__data
 
     def _reset(self):
         # set user to work under an episode

@@ -5,12 +5,13 @@ import numpy as np
 
 class SimBox(box.Box):
 
-    def __init__(self, low, high, shape=None, data=None, env=None, top_n=20):
+    def __init__(self, low, high, shape=None, env=None, top_n=20):
         assert env is not None, "Environment cannot be None"
-        assert data is not None, "If no custom data is available for sampling, it is better to use Box class directly"
-        self.__data = data
+        assert callable(getattr(env, "get_data", None)), "If no custom data is available for sampling, it is " \
+                                                         "better to use Box class directly"
+        self.__data = env.get_data()
         self.__env = env
-        self.__top_n = top_n
+        self.top_n = top_n
         super(SimBox, self).__init__(low, high, shape)
 
     def sample(self):
@@ -20,7 +21,7 @@ class SimBox(box.Box):
         :param top_n:
         :return:
         """
-        top_n_range = range(self.__top_n)
+        top_n_range = range(self.top_n)
         prng.np_random.shuffle(top_n_range)
         sample = top_n_range[0]
         sample_item_id = self.__data.get_likely_items_per_state(self.__env.obs_id)[sample]
