@@ -30,6 +30,15 @@ class Data(object):
     def compute_transition(self, prev_obs, obs, embeddings=None):
         pass
 
+    def get_likely_items_per_state(self, state, top_n=20):
+        pass
+
+    def get_item_representation(self, item_id):
+        pass
+
+    def build_item_representation(self, item):
+        pass
+
 class MongoDB(Data):
     def __init__(self, random=None, kwargs=None):
         super(MongoDB, self).__init__(random)
@@ -157,15 +166,42 @@ class FileSystemData(Data):
             obs_id = obs
 
 
-        # get the item transition with max probability
+
         item_transitions = self.__trmatrix.get_transitions_per_item(prev_obs)
-        max_p_index = np.argmax(item_transitions)
+        # get the item transition with max probability
+        # max_p_index = np.argmax(item_transitions)
+
+        mean = np.mean(item_transitions)
+        std = np.std(item_transitions)
+
+        # simulating user action as a normal distribution
+        p_chosen = np.random.normal(mean, std, 1)[0]
+        chosen = item_transitions[obs_id - 1] < p_chosen
+
         rating = self.__user_ratings[user_id - 1][obs_id - 1]
         # get existing rating, otherwise, select the rating from predictions
         # rating = rating if rating > 0 else self.__trmatrix.get_rankings_per_user(user_id)[obs_id - 1]
         rating = rating if rating > 0 else self.__trmatrix.predict_item_rating(user_id, obs_id)
 
-        return max_p_index + 1 == obs_id, item_transitions[obs_id - 1], np.round(rating), obs_id
+        # return max_p_index + 1 == obs_id, item_transitions[obs_id - 1], np.round(rating), obs_id
+        return chosen and rating > 0, item_transitions[obs_id - 1], np.round(rating), obs_id
+
+    def get_likely_items_per_state(self, state_id, top_n=20):
+        item_transitions = self.__trmatrix.get_transitions_per_item(state_id - 1)
+        top_n_items = item_transitions.argsort()[::-1][:top_n]
+        # sum 1 to return the actual item id
+        return 1 + top_n_items
+
+    def get_item_representation(self, item_id):
+        item = self.find_one(query={"_id": item_id}, type="items")
+        return self.build_item_representation(item)
+
+    def build_item_representation(self, item):
+        embeddings = np.array(item['embeddings']).ravel()
+        other_feat = np.array(item['other_feat']).ravel()
+        return np.concatenate([embeddings, other_feat]).ravel(), embeddings, other_feat
+
+
 
 
 # just for testing purposes

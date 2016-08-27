@@ -13,6 +13,7 @@ import sys
 
 logger = logging.getLogger(__name__)
 
+
 class CollaborativeFiltering(gym.Env):
 
     metadata = {
@@ -45,7 +46,7 @@ class CollaborativeFiltering(gym.Env):
         # self.__current_user = sample_user["user_id"]
         self.__previous_user = None
         self.__current_user = None
-        self.__obs_id = sample_item["_id"]
+        self.obs_id = sample_item["_id"]
         self.__embeddings = np.ones(shape=self.__emb_size)
         self.__other_feat = np.ones(shape=self.__other_size)
 
@@ -65,7 +66,9 @@ class CollaborativeFiltering(gym.Env):
         # self.action_space = spaces.Box(np.array([1. * low]), np.array([1. * high])) # enclosed by squared brackets only when the action space is set to item id set
 
         # action space defined as the current item to be selected
-        self.action_space = spaces.Box(low, high)
+        # self.action_space = spaces.Box(low, high)
+        self.action_space = spaces.SimBox(low, high, data=self.__data, env=self,
+                                          top_n=self.properties.kwargs['expl_subset_limit'])
 
         # if self.properties.kwargs['use_mongodb']:
         #     self._get_tr_stats(low, high)
@@ -107,7 +110,7 @@ class CollaborativeFiltering(gym.Env):
         self.__selected_items = []
 
         # random item state
-        self.__obs_id, item = self._get_guided_random_item()
+        self.obs_id, item = self._get_guided_random_item()
         self.__embeddings = np.array(item['embeddings']).ravel()
         self.__other_feat = np.array(item['other_feat']).ravel()
         self.__true_positives = self.__true_negatives = self.__false_positives = self.__false_negatives = 0
@@ -157,9 +160,9 @@ class CollaborativeFiltering(gym.Env):
         assert self.action_space.contains(action), "%r (%s) invalid"%(action, type(action))
 
         # FOR DISCRETE ACTION SPACE
-        # is_chosen, p_action, pred_rating, action_id = self.__data.compute_transition(self.__current_user, self.__obs_id, int(action))
+        # is_chosen, p_action, pred_rating, action_id = self.__data.compute_transition(self.__current_user, self.obs_id, int(action))
         # FOR CONTINUOUS ACTION SPACE
-        is_chosen, p_action, pred_rating, action_id = self.__data.compute_transition(self.__current_user, self.__obs_id,
+        is_chosen, p_action, pred_rating, action_id = self.__data.compute_transition(self.__current_user, self.obs_id,
                                                                                      action,
                                                                                      embeddings=(self.__emb_size,
                                                                                                  self.__other_size))
@@ -172,7 +175,7 @@ class CollaborativeFiltering(gym.Env):
             info["item selected with P(X)"] = p_action
             p_end_episode = 0.1 # the episode ends with probability 0.1
             action_id = int(action_id)
-            item_info = {"previous": self.__obs_id, "item": action_id, "reward": pred_rating,
+            item_info = {"previous": self.obs_id, "item": action_id, "reward": pred_rating,
                          "info": {"rating": pred_rating, "recommended": "X", "random": "-"}}
         else: # user selects another item randomly
             self.__false_positives += 1
@@ -186,17 +189,18 @@ class CollaborativeFiltering(gym.Env):
             action_id = random_item["_id"]
             info["item randomly selected"] = action_id
             # FOR DISCRETE ACTION SPACE
-            # _, p_action, pred_rating = self.__data.compute_transition(self.__current_user, self.__obs_id, action_id)
+            # _, p_action, pred_rating = self.__data.compute_transition(self.__current_user, self.obs_id, action_id)
             # FOR CONTINUOUS ACTION SPACE
-            emb = np.array(random_item['embeddings']).ravel()
-            oth = np.array(random_item['other_feat']).ravel()
-            action = np.concatenate([emb, oth]).ravel()
-            _, p_action, pred_rating, _ = self.__data.compute_transition(self.__current_user, self.__obs_id, action,
+            # emb = np.array(random_item['embeddings']).ravel()
+            # oth = np.array(random_item['other_feat']).ravel()
+            # action = np.concatenate([emb, oth]).ravel()
+            action, _, _ = self.__data.build_item_representation(random_item)
+            _, p_action, pred_rating, _ = self.__data.compute_transition(self.__current_user, self.obs_id, action,
                                                                          embeddings=(self.__emb_size,
                                                                                      self.__other_size))
 
             info["item selected with P(X)"] = p_action
-            item_info = {"previous": self.__obs_id, "item": action_id, "reward": 0.,
+            item_info = {"previous": self.obs_id, "item": action_id, "reward": 0.,
                          "info": {"rating": pred_rating, "recommended": "-", "random": "X"}}
 
             # set reward to ZERO as the user selects an item randomly
@@ -214,10 +218,11 @@ class CollaborativeFiltering(gym.Env):
             self.__previous_user = self.__current_user
             # TODO: calculate MAP for cumulative Precision over users (episodes)
 
-        self.__obs_id = action_id
-        obs = self.__data.find_one(query={"_id": self.__obs_id}, type="items")
-        self.__embeddings = np.array(obs['embeddings']).ravel()
-        self.__other_feat = np.array(obs['other_feat']).ravel()
+        self.obs_id = action_id
+        # obs = self.__data.find_one(query={"_id": self.obs_id}, type="items")
+        # self.__embeddings = np.array(obs['embeddings']).ravel()
+        # self.__other_feat = np.array(obs['other_feat']).ravel()
+        _, self.__embeddings, self.__other_feat = self.__data.get_item_representation(self.obs_id)
 
         return self._get_obs(), round(reward), done, info
 

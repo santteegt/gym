@@ -490,10 +490,10 @@ register(
     kwargs={'properties': {'use_mongodb': False, 'mongo_db': 'recommender', 'items_collection': 'items_movielens100k',
                 'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
                 'expl_subset_limit': 20, # number of good recommendations for guided exploration
-                "guided_exploration": True,
+                "guided_exploration": False,
                 'local': {'train': False, 'path': 'data/ml-1m',
-                          'info': 'u.info', # manually created for ml-1m
-                          'items_collection': 'items_collection.csv', #created by executing dataset_loader for w_embed
+                          'info': 'u.info', # stats of dataset. manually created for ml-1m
+                          'items_collection': 'items_collection.csv', # created by executing dataset_loader.py (w_embd)
                           'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',
                           'predicted_ratings': 'rankmatrix.npy'} # created by executing transition_matrix.py for train
             }},
