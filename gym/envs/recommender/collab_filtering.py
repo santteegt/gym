@@ -50,10 +50,7 @@ class CollaborativeFiltering(gym.Env):
         self.__embeddings = np.ones(shape=self.__emb_size)
         self.__other_feat = np.ones(shape=self.__other_size)
 
-        self.__true_positives = 0
-        self.__true_negatives = 0
-        self.__false_positives = 0
-        self.__false_negatives = 0
+        self.__true_positives = self.__true_negatives = self.__false_positives = self.__false_negatives = 0.
         self.__selected_items = []
 
         low = np.concatenate([-1 * np.ones(self.__emb_size), np.zeros(self.__other_size)]).ravel()
@@ -113,7 +110,7 @@ class CollaborativeFiltering(gym.Env):
         self.obs_id, item = self._get_guided_random_item()
         self.__embeddings = np.array(item['embeddings']).ravel()
         self.__other_feat = np.array(item['other_feat']).ravel()
-        self.__true_positives = self.__true_negatives = self.__false_positives = self.__false_negatives = 0
+        self.__true_positives = self.__true_negatives = self.__false_positives = self.__false_negatives = 0.
         return self._get_obs()
 
     def _get_obs(self):
@@ -233,8 +230,8 @@ class CollaborativeFiltering(gym.Env):
 
         output = StringIO() if mode == 'ansi' else sys.stdout
 
-        head  = "Running episode with user {0:06d}\n".format(self.__current_user)
-        head += "================================\n"
+        # head  = "Running episode with user {0:06d}\n".format(self.__current_user)
+        head  = "================================\n"
         head += "====Item recommended so far=====\n"
         head += "================================\n"
         head += "User: {}\n".format(self.__previous_user)
