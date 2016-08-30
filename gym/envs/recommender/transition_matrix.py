@@ -79,6 +79,7 @@ class TransitionProbability(object):
     def __init__(self, shape, train=True, raw_data=None, alpha=0.1, beta=0.9, data_dir='data'):
         self.__shape = shape
         self.__raw_data = raw_data
+        self.items_collection_filename = os.path.join(data_dir, "items_collection.npy")
         self.rating_matrix_filename = os.path.join(data_dir, "rmatrix.npy")
         self.similarity_matrix_filename = os.path.join(data_dir, "simmatrix.npy")
         self.transition_matrix_filename = os.path.join(data_dir, "trmatrix.npy")
@@ -89,20 +90,22 @@ class TransitionProbability(object):
             # ACTUAL COMPUTATION OF TRANSITION MATRIX
 
             self.__ratings_matrix, self.__sim_matrix = self._get_initial_matrices()
-            np.savetxt(self.similarity_matrix_filename + '.txt', self.__sim_matrix)
-            self._crossValidation()
+            # np.savetxt(self.similarity_matrix_filename + '.txt', self.__sim_matrix)
+            # self._crossValidation()
             self.__tr_matrix = self.get_transition_matrix(generate=True, beta=beta)
 
             # USE TRANSTITION MATRIX TO COMPUTE RANKING MATRIX
             # self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=True)
             self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=False)
 
+            items_collection = self.__ratings_matrix.T.toarray()
+            np.save(self.items_collection_filename, items_collection, allow_pickle=False)
             self.__ratings_matrix = self.__ratings_matrix.toarray()
             np.save(self.rating_matrix_filename, self.__ratings_matrix, allow_pickle=False)
             np.save(self.similarity_matrix_filename, self.__sim_matrix, allow_pickle=False)
             np.save(self.transition_matrix_filename, self.__tr_matrix, allow_pickle=False)
             np.save(self.ranking_matrix_filename, self.__ranking_matrix, allow_pickle=False)
-            np.savetxt(self.ranking_matrix_filename+'.txt', self.__ranking_matrix)
+            # np.savetxt(self.ranking_matrix_filename+'.txt', self.__ranking_matrix)
         else: # LOAD MODEL
             self.__ratings_matrix = np.load(self.rating_matrix_filename, "r", allow_pickle=False)
             self.__sim_matrix = np.load(self.similarity_matrix_filename, "r", allow_pickle=False)

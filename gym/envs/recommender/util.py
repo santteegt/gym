@@ -171,12 +171,20 @@ class FileSystemData(Data):
         # get the item transition with max probability
         # max_p_index = np.argmax(item_transitions)
 
+        max = np.mean(item_transitions)
         mean = np.mean(item_transitions)
         std = np.std(item_transitions)
 
-        # simulating user action as a normal distribution
-        p_chosen = np.random.normal(mean, std, 1)[0]
-        chosen = item_transitions[obs_id - 1] < p_chosen
+        # simulating user action as a normal distribution (BAD APPROACH)
+        # p_chosen = np.random.normal(mean, std, 1)[0]
+        # chosen = item_transitions[obs_id - 1] < p_chosen
+
+        # the same number (low number ~ 170) of item transitions per given state rely above this threshold
+        threshold = max - std
+        # a less than a half (~ 1600) of item transitions per given state rely above this threshold
+        threshold = mean
+
+        chosen = item_transitions[obs_id - 1] > threshold
 
         rating = self.__user_ratings[user_id - 1][obs_id - 1]
         # get existing rating, otherwise, select the rating from predictions
