@@ -99,6 +99,9 @@ class TransitionProbability(object):
             self.__ranking_matrix = self._compute_rankings(alpha=alpha, scale=False)
 
             items_collection = self.__ratings_matrix.T.toarray()
+            # items_collection = (items_collection > 0) * 1
+            # normalization
+            items_collection = items_collection / 5.
             np.save(self.items_collection_filename, items_collection, allow_pickle=False)
             self.__ratings_matrix = self.__ratings_matrix.toarray()
             np.save(self.rating_matrix_filename, self.__ratings_matrix, allow_pickle=False)
