@@ -499,3 +499,24 @@ register(
             }},
     nondeterministic=False,
 )
+
+# Collaborative Filtering using item representation from the user rating matrix
+register(
+    id='CollaborativeFiltering-v1',
+    entry_point='gym.envs.recommender:CollaborativeFilteringV1',
+    reward_threshold=80, # 943 users x 20 items x (3.5)~4 average rating. In terms of average reward per episode (1 user at a time)
+    timestep_limit=18900, # ~ 943 users x 20 items
+    trials=100, #default value
+    # local_only=False,
+    kwargs={'properties': {'use_mongodb': False, 'mongo_db': 'recommender', 'items_collection': 'items_movielens100k',
+                'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
+                'expl_subset_limit': 20, # number of good recommendations for guided exploration
+                "guided_exploration": False,
+                'local': {'train': False, 'path': 'data/ml-1m',
+                          'info': 'u.info', # stats of dataset. manually created for ml-1m
+                          'items_collection': 'items_collection.npy', # created by executing transition_matrix.py
+                          'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',
+                          'predicted_ratings': 'rankmatrix.npy'} # created by executing transition_matrix.py for train
+            }},
+    nondeterministic=False,
+)

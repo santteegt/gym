@@ -82,13 +82,16 @@ class MongoDB(Data):
 
 class FileSystemData(Data):
     def __init__(self, kwargs, random=None):
-        local_properties = kwargs['local']
-        path = local_properties['path']
-        users, items, ratings = self._read_info(os.path.join(path, local_properties['info']))
+        self.local_properties = kwargs['local']
+        path = self.local_properties['path']
+        users, items, ratings = self._read_info(os.path.join(path, self.local_properties['info']))
         self.__stats = {"users": users, "items": items,  "ratings": ratings}
-        self.__items = self._read_csv_data(os.path.join(path, local_properties['items_collection']))
-        self.__user_ratings = self._read_numpy_array(os.path.join(self.data_dir, local_properties['ratings_collection']))
-        self.__trmatrix = TransitionProbability(train=local_properties['train'], raw_data=self.__user_ratings,
+        items_file = self.local_properties['items_collection']
+        self.__items = self._read_csv_data(os.path.join(path, items_file)) if items_file.endswith(".csv") \
+            else self._read_numpy_array(os.path.join(path, items_file))
+        self.__user_ratings = self._read_numpy_array(os.path.join(self.data_dir,
+                                                                  self.local_properties['ratings_collection']))
+        self.__trmatrix = TransitionProbability(train=self.local_properties['train'], raw_data=self.__user_ratings,
                                                 shape=(users, items), data_dir=self.data_dir)
 
     def _read_csv_data(self, file_path, separator=',', header=None):
@@ -114,13 +117,23 @@ class FileSystemData(Data):
         assert type == "items" or type == "ratings", \
             "Wrong type value for query. Given: {}. Possible Values = [items, ratings]".format(type)
         if type == "items":
-            rs = self.__items.sample() if query is None else \
-                self.__items[self.__items[query.keys()[0]] == query.values()[0]]
-            # TODO: remove this hack and read arrays in panda accordingly
-            item = {}
-            item['_id'] = rs['_id'].values[0]
-            item['embeddings'] = np.fromstring(rs['embeddings'].values[0][1:][:-1], sep=" ")
-            item['other_feat'] = np.fromstring(rs['other_feat'].values[0][1:][:-1], sep=" ")
+            if self.local_properties['items_collection'].endswith(".csv"):
+                rs = self.__items.sample() if query is None else \
+                    self.__items[self.__items[query.keys()[0]] == query.values()[0]]
+                # TODO: remove this hack and read arrays in panda accordingly
+                item = {}
+                item['_id'] = rs['_id'].values[0]
+                item['embeddings'] = np.fromstring(rs['embeddings'].values[0][1:][:-1], sep=" ")
+                item['other_feat'] = np.fromstring(rs['other_feat'].values[0][1:][:-1], sep=" ")
+            else:
+                item = {}
+                if query is None:
+                    rows = self.__items.shape[0] - 1
+                    item["_id"] = int(np.round(np.random.uniform(0, rows)))
+                else:
+                    item["_id"] = query
+                item["embeddings"] = self.__items[item["_id"]]
+                item['other_feat'] = []
             return item
         else:
             rating = None
@@ -135,8 +148,11 @@ class FileSystemData(Data):
         assert type == "items" or type == "ratings", \
             "Wrong type value for query. Given: {}. Possible Values = [items, ratings]".format(type)
         if type == "items":
-            ids = self.__items["_id"]
-            return ids.min(), ids.max()
+            if self.local_properties['items_collection'].endswith(".csv"):
+                ids = self.__items["_id"]
+                return ids.min(), ids.max()
+            else:
+                return 0, self.__items.shape[0]
         else:
             return 1, self.__user_ratings.shape[0]
 
@@ -147,21 +163,24 @@ class FileSystemData(Data):
         '''
         Computes the transition probability of an item given the current state and returns its value and simulated user
         rating if it is likely chosen
-        Args:
-            user_id:
-            prev_obs:
-            obs:
-
-        Returns:
-
+        :param user_id:
+        :param prev_obs:
+        :param obs:
+        :param embeddings:
+        :return:
         '''
         if embeddings is not None:
-            embed_feat = obs[:embeddings[0]]
-            other_feat = obs[embeddings[0]:].astype(np.int)
-            item = self.__items[(self.__items["embeddings"] == str(embed_feat))
-                                & (self.__items["other_feat"] == str(other_feat))]
-            assert item.values.size > 0, "The query is not returning features for an existing item"
-            obs_id = item["_id"].values[0]
+            if self.local_properties['items_collection'].endswith(".csv"):
+                embed_feat = obs[:embeddings[0]]
+                other_feat = obs[embeddings[0]:].astype(np.int)
+                item = self.__items[(self.__items["embeddings"] == str(embed_feat))
+                                    & (self.__items["other_feat"] == str(other_feat))]
+                assert item.values.size > 0, "The query is not returning features for an existing item"
+                obs_id = item["_id"].values[0]
+            else:
+                rs = np.all(self.__items == obs, axis=1)
+                # sum up 1 as it return index position
+                obs_id = 1 + np.argmax(rs)
         else:
             obs_id = obs
 
@@ -201,7 +220,8 @@ class FileSystemData(Data):
         return 1 + top_n_items
 
     def get_item_representation(self, item_id):
-        item = self.find_one(query={"_id": item_id}, type="items")
+        query = {"_id": item_id} if self.local_properties['items_collection'].endswith(".csv") else item_id
+        item = self.find_one(query=query, type="items")
         return self.build_item_representation(item)
 
     def build_item_representation(self, item):
