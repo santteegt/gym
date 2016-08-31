@@ -131,7 +131,7 @@ class FileSystemData(Data):
                     rows = self.__items.shape[0] - 1
                     item["_id"] = int(np.round(np.random.uniform(0, rows)))
                 else:
-                    item["_id"] = query
+                    item["_id"] = query - 1
                 item["embeddings"] = self.__items[item["_id"]]
                 item['other_feat'] = []
             return item
