@@ -512,7 +512,7 @@ register(
                 'trmatrix_collection': 'trmatrix_movielens100k', "ratings_collection": 'ratings_movielens100k',
                 'expl_subset_limit': 20, # number of good recommendations for guided exploration
                 "guided_exploration": False,
-                'local': {'train': False, 'path': 'data/ml-1m',
+                'local': {'train': False, 'path': 'data/ml-100k',
                           'info': 'u.info', # stats of dataset. manually created for ml-1m
                           'items_collection': 'items_collection.npy', # created by executing transition_matrix.py
                           'trmatrix_collection': 'trmatrix.npy', 'ratings_collection': 'rmatrix.npy',
