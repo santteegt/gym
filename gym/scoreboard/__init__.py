@@ -111,6 +111,16 @@ add_task(
     """
 )
 
+add_task(
+    id='CollaborativeFiltering-v2',
+    group='recommender',
+    summary="Collaborative Filtering Environment",
+    # contributor='UCL/santteegt',
+    description="""Collaborative Filtering environment which simulates user behaviour based on a Markov Chain Transition
+    Probability matrix
+    """
+)
+
 # classic control
 
 add_task(
