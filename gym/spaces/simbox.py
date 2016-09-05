@@ -21,10 +21,16 @@ class SimBox(box.Box):
         :param top_n:
         :return:
         """
-        top_n_range = range(self.top_n)
+        # top_n_range = range(self.top_n)
+        # prng.np_random.shuffle(top_n_range)
+        # sample = top_n_range[0]
+        # sample_item_id = self.__data.get_likely_items_per_state(self.__env.obs_id)[sample]
+        # sample_item, _, _ = self.__data.get_item_representation(sample_item_id)
+
+        top_n_range = range(1682)
         prng.np_random.shuffle(top_n_range)
         sample = top_n_range[0]
-        sample_item_id = self.__data.get_likely_items_per_state(self.__env.obs_id)[sample]
+        sample_item_id = self.__data.get_likely_items_per_state(self.__env.obs_id, top_n=1682)[sample]
         sample_item, _, _ = self.__data.get_item_representation(sample_item_id)
 
         return sample_item
